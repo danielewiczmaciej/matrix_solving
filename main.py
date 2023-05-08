@@ -75,10 +75,10 @@ def jacobi(A, b, tol=1e-10, max_iter=10000000):
         for i in range(n):
             x_new[i] = (b[i] - np.dot(A[i,:], x) + A[i,i]*x[i])/A[i,i]
         if np.linalg.norm(x_new - x) < tol:
-            end = time.time()
-            return x_new, it, (end - start)
+            break
         x = x_new
-    raise Exception("Jacobi method did not converge")
+    end = time.time()
+    return x_new, it, (end - start)
 
 
 def gauss_seidel(A, b, tol=1e-10, max_iter=10000000):
@@ -87,15 +87,16 @@ def gauss_seidel(A, b, tol=1e-10, max_iter=10000000):
     A = np.array(A)
     it = 0
     start = time.time()
-    for k in range(max_iter):
-        it = k
+    for _ in range(max_iter):
+        it += 1
         for i in range(n):
             x[i] = (b[i] - np.dot(A[i, :i], x[:i]) - np.dot(A[i, i + 1:], x[i + 1:])) / A[i, i]
 
         if np.linalg.norm(A @ x - b) < tol:
-            end = time.time()
-            return x, it, (end - start)
-    raise Exception("Gauss-Seidel method did not converge")
+            break
+    end = time.time()
+    return x, it, (end - start)
+
 
 def calculate_residue_norm(A, x, b):
     return np.linalg.norm(np.dot(A, x) - b)
@@ -123,7 +124,7 @@ def task_b():
     print(f"Gauss-Seidel time: {time_gauss}")
 
 def task_c():
-    A, B = task_a(3)
+    A, B = task_a(a1=3)
 
     x_Jacobi, iter_jacobi, time_jacobi = jacobi(A, B)
 
@@ -137,9 +138,9 @@ def task_c():
     print(f"Gauss-Seidel iterations: {iter_gauss}")
     print(f"Gauss-Seidel time: {time_gauss}")
 
-def task_d():
-    A = make_matrix()
-    B = make_b()
+def task_d(n=955):
+    A = make_matrix(n)
+    B = make_b(n)
     start = time.time()
     LU = LUDecompDoolittle(A)
     x_LU = SolveLinearSystem_LU(LU, B)
@@ -158,7 +159,7 @@ def task_e():
         A, B = task_a(n=amount)
         _, _, time_jacobi = jacobi(A, B)
         _, _, time_gauss = gauss_seidel(A, B)
-        time_LU = task_d()
+        time_LU = task_d(n=amount)
         gauss_times.append(time_gauss)
         jacobi_times.append(time_jacobi)
         LU_times.append(time_LU)
