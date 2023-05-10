@@ -19,7 +19,6 @@ def make_matrix(n=955, w=5, a1=10, a2=-1, a3=-1):
         matrix[i + 2][i] = a3
         matrix[i][i + 2] = a3
 
-
     matrix = np.array(matrix)
 
     return matrix
@@ -40,20 +39,10 @@ def matrix_mult(A, B):
     return result
 
 
-def diagonal(matrix):
-    # Extracts the diagonal elements of the matrix and returns them as a 1D array
-    return np.array([matrix[i, i] for i in range(matrix.shape[0])])
-
-
-def matrix_vector_product(matrix, vector):
-    # Performs matrix-vector multiplication
-    return np.array([np.sum(matrix[i, :] * vector) for i in range(matrix.shape[0])])
-
-
 def norm_residual(A, b, x):
-    Ax = matrix_vector_product(A, x)
+    Ax = matrix_mult(A, x)
     res = np.empty(len(b))
-    for i,(item1, item2) in enumerate(zip(b, Ax)):
+    for i, (item1, item2) in enumerate(zip(b, Ax)):
         res[i] = item1 - item2
     norm_res = 0
     for i in range(len(res)):
@@ -91,19 +80,17 @@ def jacobi(A, b, tol=1e-9, max_iter=1000):
     n = len(A)
     x = np.zeros_like(b, dtype=float)
     x_old = np.copy(x)
-    start = time.time()
     it = 0
-    norm = norm_residual(A, b, x)
-    while norm >= tol:
+    start = time.time()
+    while norm_residual(A, b, x) >= tol:
         for i in range(n):
             sigma = 0
             for j in range(n):
-                if j!=i:
+                if j != i:
                     sigma += A[i][j] * x_old[j]
             x[i] = (b[i] - sigma) / A[i][i]
         for i in range(n):
             x_old[i] = x[i]
-        norm = norm_residual(A, b, x)
         it += 1
 
     end = time.time()
@@ -119,16 +106,12 @@ def gauss_seidel(A, b, tol=1e-9, max_iter=1000):
         for i in range(n):
             sigma = 0
             for j in range(n):
-                if j!=i:
+                if j != i:
                     sigma += A[i][j] * x[j]
             x[i] = (b[i] - sigma) / A[i][i]
         it += 1
     end = time.time()
     return x, it, (end - start)
-
-
-def euclidean_norm(v):
-    return math.sqrt(sum([x ** 2 for x in v]))
 
 
 def task_a(n=955, a1=10):
@@ -208,4 +191,4 @@ def task_e():
 
 
 if __name__ == '__main__':
-    task_b()
+    task_d(a1=3)
