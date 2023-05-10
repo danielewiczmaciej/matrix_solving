@@ -31,19 +31,16 @@ def make_b(n=955):
 def matrix_mult(A, B):
     if A.shape[1] != B.shape[0]:
         raise ValueError("Matrices are not compatible for multiplication")
-    result = np.zeros((A.shape[0], 1))
+    result = np.zeros((A.shape[0], B.shape[1]))
     for i in range(A.shape[0]):
         for j in range(B.shape[1]):
-            for k in range(A.shape[1]):
-                result[i][j] += A[i][k] * B[k][j]
+            result[i][j] = np.sum(np.multiply(A[i, :], B[:, j]))
     return result
 
 
 def norm_residual(A, b, x):
     Ax = matrix_mult(A, x)
-    res = np.empty(len(b))
-    for i, (item1, item2) in enumerate(zip(b, Ax)):
-        res[i] = item1 - item2
+    res = b - Ax
     norm_res = 0
     for i in range(len(res)):
         norm_res += (res[i] ** 2)
@@ -177,8 +174,11 @@ def task_e():
         gauss_times.append(time_gauss)
         jacobi_times.append(time_jacobi)
         LU_times.append(time_LU)
+        print(f"LU Time: {time_LU}")
         print(f"Jacobi iterations: {it_jacobi}")
+        print(f"Jacobi time: {time_jacobi}")
         print(f"Gauss iterations: {it_gauss}")
+        print(f"Gauss time: {time_gauss}")
 
     fig, ax = plt.subplots()
     ax.plot(N, gauss_times, 'blue')
@@ -191,4 +191,4 @@ def task_e():
 
 
 if __name__ == '__main__':
-    task_d(a1=3)
+    task_e()
