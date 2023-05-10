@@ -19,13 +19,6 @@ def make_matrix(n=955, w=5, a1=10, a2=-1, a3=-1):
         matrix[i + 2][i] = a3
         matrix[i][i + 2] = a3
 
-    for i in range(n - w):
-        matrix[i][i + w] = a2
-        matrix[i + w][i] = a2
-
-    for i in range(n - 2 * w):
-        matrix[i][i + 2 * w] = a3
-        matrix[i + 2 * w][i] = a3
 
     matrix = np.array(matrix)
 
@@ -60,7 +53,7 @@ def matrix_vector_product(matrix, vector):
 def norm_residual(A, b, x):
     Ax = matrix_vector_product(A, x)
     res = np.empty(len(b))
-    for i,(item1, item2) in enumerate(zip(b,Ax)):
+    for i,(item1, item2) in enumerate(zip(b, Ax)):
         res[i] = item1 - item2
     norm_res = 0
     for i in range(len(res)):
