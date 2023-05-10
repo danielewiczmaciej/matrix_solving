@@ -3,9 +3,10 @@ import math
 import time
 import matplotlib.pyplot as plt
 
+
 def make_matrix(n=955, w=5, a1=10, a2=-1, a3=-1):
     # Initialize matrix with zeros
-    matrix = [[0 for j in range(n)] for i in range(n)]
+    matrix = [[0.0 for j in range(n)] for i in range(n)]
 
     for i in range(n):
         matrix[i][i] = a1
@@ -26,80 +27,116 @@ def make_matrix(n=955, w=5, a1=10, a2=-1, a3=-1):
         matrix[i][i + 2 * w] = a3
         matrix[i + 2 * w][i] = a3
 
+    matrix = np.array(matrix)
+
     return matrix
 
 
 def make_b(n=955):
-    return np.array([[math.sin(i*9)] for i in range(n)])
+    return np.array([[math.sin(i * 9)] for i in range(n)])
 
-def LUDecompDoolittle(A):
-    n = len(A)
-    LU = np.array(A, dtype=float)
 
-    # decomposition of matrix, Doolittle's Method
+def matrix_mult(A, B):
+    if A.shape[1] != B.shape[0]:
+        raise ValueError("Matrices are not compatible for multiplication")
+    result = np.zeros((A.shape[0], 1))
+    for i in range(A.shape[0]):
+        for j in range(B.shape[1]):
+            for k in range(A.shape[1]):
+                result[i][j] += A[i][k] * B[k][j]
+    return result
+
+
+def diagonal(matrix):
+    # Extracts the diagonal elements of the matrix and returns them as a 1D array
+    return np.array([matrix[i, i] for i in range(matrix.shape[0])])
+
+
+def matrix_vector_product(matrix, vector):
+    # Performs matrix-vector multiplication
+    return np.array([np.sum(matrix[i, :] * vector) for i in range(matrix.shape[0])])
+
+
+def norm_residual(A, b, x):
+    Ax = matrix_vector_product(A, x)
+    res = np.empty(len(b))
+    for i,(item1, item2) in enumerate(zip(b,Ax)):
+        res[i] = item1 - item2
+    norm_res = 0
+    for i in range(len(res)):
+        norm_res += (res[i] ** 2)
+    return math.sqrt(norm_res)
+
+
+def lu_factorization_solve(A, b):
+    n = A.shape[0]
+    U = np.copy(A)
+    L = np.eye(n, dtype=np.double)
     for i in range(n):
+        factor = U[i + 1:, i] / U[i, i]
+        L[i + 1:, i] = factor
+        U[i + 1:] -= factor[:, np.newaxis] * U[i]
+    # Solve Ly = b
+    y = np.zeros(n)
+    for i in range(n):
+        s = 0
         for j in range(i):
-            LU[i, j] = (LU[i, j] - LU[i, :j] @ LU[:j, j]) / LU[j, j]
-
-        j = slice(i, n)
-        LU[i, j] = LU[i, j] - LU[i, :i] @ LU[:i, j]
-
-    return LU
-
-
-def SolveLinearSystem_LU(LU, B):
-    n = len(LU)
-    y = np.zeros_like(B, dtype=float)
-
-    # find solution of Ly = B
-    for i in range(n):
-        y[i, :] = B[i, :] - LU[i, :i] @ y[:i, :]
-
-    # find solution of Ux = y
-    x = np.zeros_like(B, dtype=float)
+            s += L[i, j] * y[j]
+        y[i] = b[i] - s
+    # Solve Ux = y
+    x = np.zeros((n, 1))
     for i in range(n - 1, -1, -1):
-        x[i, :] = (y[i, :] - LU[i, i + 1:] @ x[i + 1:, :]) / LU[i, i]
-
+        s = 0
+        for j in range(i + 1, n):
+            s += U[i, j] * x[j]
+        x[i] = (y[i] - s) / U[i, i]
+    x = np.array(x)
     return x
 
 
-def jacobi(A, b, tol=1e-10, max_iter=10000000):
+def jacobi(A, b, tol=1e-9, max_iter=1000):
     n = len(A)
     x = np.zeros_like(b, dtype=float)
-    x_new = np.zeros_like(b, dtype=float)
-    A = np.array(A)
-    it = 0
+    x_old = np.copy(x)
     start = time.time()
-    for k in range(max_iter):
-        it = k
+    it = 0
+    norm = norm_residual(A, b, x)
+    while norm >= tol:
         for i in range(n):
-            x_new[i] = (b[i] - np.dot(A[i,:], x) + A[i,i]*x[i])/A[i,i]
-        if np.linalg.norm(x_new - x) < tol:
-            break
-        x = x_new
-    end = time.time()
-    return x_new, it, (end - start)
-
-
-def gauss_seidel(A, b, tol=1e-10, max_iter=10000000):
-    n = len(A)
-    x = np.zeros((n, 1), dtype=float)
-    A = np.array(A)
-    it = 0
-    start = time.time()
-    for _ in range(max_iter):
+            sigma = 0
+            for j in range(n):
+                if j!=i:
+                    sigma += A[i][j] * x_old[j]
+            x[i] = (b[i] - sigma) / A[i][i]
+        for i in range(n):
+            x_old[i] = x[i]
+        norm = norm_residual(A, b, x)
         it += 1
-        for i in range(n):
-            x[i] = (b[i] - np.dot(A[i, :i], x[:i]) - np.dot(A[i, i + 1:], x[i + 1:])) / A[i, i]
 
-        if np.linalg.norm(A @ x - b) < tol:
-            break
     end = time.time()
     return x, it, (end - start)
 
 
-def calculate_residue_norm(A, x, b):
-    return np.linalg.norm(np.dot(A, x) - b)
+def gauss_seidel(A, b, tol=1e-9, max_iter=1000):
+    n = len(A)
+    x = np.zeros((n, 1), dtype=float)
+    start = time.time()
+    it = 0
+    while norm_residual(A, b, x) >= tol:
+        for i in range(n):
+            sigma = 0
+            for j in range(n):
+                if j!=i:
+                    sigma += A[i][j] * x[j]
+            x[i] = (b[i] - sigma) / A[i][i]
+        it += 1
+    end = time.time()
+    return x, it, (end - start)
+
+
+def euclidean_norm(v):
+    return math.sqrt(sum([x ** 2 for x in v]))
+
 
 def task_a(n=955, a1=10):
     A = make_matrix(n=n, a1=a1)
@@ -113,62 +150,64 @@ def task_b():
 
     x_Jacobi, iter_jacobi, time_jacobi = jacobi(A, B)
 
-    print(f"Jacobi Residue norm: {calculate_residue_norm(A, x_Jacobi, B)}")
+    print(f"Jacobi Residue norm: {norm_residual(A, B, x_Jacobi)}")
     print(f"Jacobi iterations: {iter_jacobi}")
     print(f"Jacobi time: {time_jacobi}")
 
     x_gauss, iter_gauss, time_gauss = gauss_seidel(A, B)
 
-    print(f"Gauss-Seidel Residue norm: {calculate_residue_norm(A, x_gauss, B)}")
+    print(f"Gauss-Seidel Residue norm: {norm_residual(A, B, x_gauss)}")
     print(f"Gauss-Seidel iterations: {iter_gauss}")
     print(f"Gauss-Seidel time: {time_gauss}")
+
 
 def task_c():
     A, B = task_a(a1=3)
 
     x_Jacobi, iter_jacobi, time_jacobi = jacobi(A, B)
 
-    print(f"Jacobi Residue norm: {calculate_residue_norm(A, x_Jacobi, B)}")
+    print(f"Jacobi Residue norm: {norm_residual(A, B, x_Jacobi)}")
     print(f"Jacobi iterations: {iter_jacobi}")
     print(f"Jacobi time: {time_jacobi}")
 
     x_gauss, iter_gauss, time_gauss = gauss_seidel(A, B)
 
-    print(f"Gauss-Seidel Residue norm: {calculate_residue_norm(A, x_gauss, B)}")
+    print(f"Gauss-Seidel Residue norm: {norm_residual(A, B, x_gauss)}")
     print(f"Gauss-Seidel iterations: {iter_gauss}")
     print(f"Gauss-Seidel time: {time_gauss}")
 
-def task_d(n=955):
-    A = make_matrix(n)
+
+def task_d(n=955, a1=10):
+    A = make_matrix(n, a1=a1)
     B = make_b(n)
     start = time.time()
-    LU = LUDecompDoolittle(A)
-    x_LU = SolveLinearSystem_LU(LU, B)
+    x_LU = lu_factorization_solve(A, B)
     end = time.time()
     elapsed_time = end - start
-    print(f"LU Decomposition residue norm: {calculate_residue_norm(A, x_LU, B)}")
+    print(f"LU Factorization residual norm: {norm_residual(A, B, x_LU)}")
     return elapsed_time
 
-def task_e():
 
+def task_e():
     N = [100, 500, 1000, 2000, 3000]
     gauss_times = []
     jacobi_times = []
     LU_times = []
     for amount in N:
         A, B = task_a(n=amount)
-        _, _, time_jacobi = jacobi(A, B)
-        _, _, time_gauss = gauss_seidel(A, B)
+        x_jacobi, it_jacobi, time_jacobi = jacobi(A, B)
+        x_gauss, it_gauss, time_gauss = gauss_seidel(A, B)
         time_LU = task_d(n=amount)
         gauss_times.append(time_gauss)
         jacobi_times.append(time_jacobi)
         LU_times.append(time_LU)
+        print(f"Jacobi iterations: {it_jacobi}")
+        print(f"Gauss iterations: {it_gauss}")
 
     fig, ax = plt.subplots()
     ax.plot(N, gauss_times, 'blue')
     ax.plot(N, jacobi_times, 'green')
     ax.plot(N, LU_times, 'yellow')
-
 
     ax.grid()
 
@@ -176,5 +215,4 @@ def task_e():
 
 
 if __name__ == '__main__':
-    task_e()
-
+    task_b()
