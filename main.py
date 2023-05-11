@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 
 def make_matrix(n=955, w=5, a1=10, a2=-1, a3=-1):
     # Initialize matrix with zeros
-    matrix = [[0.0 for j in range(n)] for i in range(n)]
+    matrix = [[0.0 for _ in range(n)] for _ in range(n)]
 
     for i in range(n):
         matrix[i][i] = a1
@@ -52,9 +52,21 @@ def lu_factorization_solve(A, b):
     U = np.copy(A)
     L = np.eye(n, dtype=np.double)
     for i in range(n):
-        factor = U[i + 1:, i] / U[i, i]
-        L[i + 1:, i] = factor
-        U[i + 1:] -= factor[:, np.newaxis] * U[i]
+        for k in range(i, n):
+            sum = 0
+            for j in range(i):
+                sum += (L[i][j] * U[j][k])
+
+            U[i][k] = A[i][k] - sum
+
+        for k in range(i, n):
+            if i == k:
+                L[i][i] = 1
+            else:
+                sum = 0
+                for j in range(i):
+                    sum += (L[k][j] * U[j][i])
+                L[k][i] = (A[k][i] - sum) / U[i][i]
     # Solve Ly = b
     y = np.zeros(n)
     for i in range(n):
@@ -73,13 +85,15 @@ def lu_factorization_solve(A, b):
     return x
 
 
-def jacobi(A, b, tol=1e-9, max_iter=1000):
+def jacobi(A, b, tol=1e-9, max_iter=30):
     n = len(A)
     x = np.zeros_like(b, dtype=float)
     x_old = np.copy(x)
     it = 0
     start = time.time()
-    while norm_residual(A, b, x) >= tol:
+    norm = norm_residual(A, b, x)
+    norms = []
+    while norm >= tol:
         for i in range(n):
             sigma = 0
             for j in range(n):
@@ -88,27 +102,37 @@ def jacobi(A, b, tol=1e-9, max_iter=1000):
             x[i] = (b[i] - sigma) / A[i][i]
         for i in range(n):
             x_old[i] = x[i]
+        if it > max_iter:
+            break
+        norm = norm_residual(A, b, x)
+        norms.append(norm)
         it += 1
 
     end = time.time()
-    return x, it, (end - start)
+    return x, it, (end - start), norms
 
 
-def gauss_seidel(A, b, tol=1e-9, max_iter=1000):
+def gauss_seidel(A, b, tol=1e-9, max_iter=30):
     n = len(A)
     x = np.zeros((n, 1), dtype=float)
     start = time.time()
     it = 0
-    while norm_residual(A, b, x) >= tol:
+    norm = norm_residual(A, b, x)
+    norms = []
+    while norm >= tol:
         for i in range(n):
             sigma = 0
             for j in range(n):
                 if j != i:
                     sigma += A[i][j] * x[j]
             x[i] = (b[i] - sigma) / A[i][i]
+        if it > max_iter:
+            break
+        norm = norm_residual(A, b, x)
+        norms.append(norm)
         it += 1
     end = time.time()
-    return x, it, (end - start)
+    return x, it, (end - start), norms
 
 
 def task_a(n=955, a1=10):
@@ -121,39 +145,65 @@ def task_a(n=955, a1=10):
 def task_b():
     A, B = task_a()
 
-    x_Jacobi, iter_jacobi, time_jacobi = jacobi(A, B)
+    x_Jacobi, iter_jacobi, time_jacobi, norms_jacobi = jacobi(A, B)
 
     print(f"Jacobi Residue norm: {norm_residual(A, B, x_Jacobi)}")
     print(f"Jacobi iterations: {iter_jacobi}")
     print(f"Jacobi time: {time_jacobi}")
 
-    x_gauss, iter_gauss, time_gauss = gauss_seidel(A, B)
+    x_gauss, iter_gauss, time_gauss, norms_gauss = gauss_seidel(A, B)
 
     print(f"Gauss-Seidel Residue norm: {norm_residual(A, B, x_gauss)}")
     print(f"Gauss-Seidel iterations: {iter_gauss}")
     print(f"Gauss-Seidel time: {time_gauss}")
+
+    fig, ax = plt.subplots()
+    # ax.plot(range(iter_gauss), norms_gauss, 'blue', label="Metoda Gauss'a-Seidel'a")
+    ax.plot(range(iter_jacobi), norms_jacobi, 'green', label="Metoda Jacobi")
+
+    ax.set_title("Norma residuum w kolejnych iteracjach")
+    ax.set_xlabel("Iteracja [n]")
+    ax.set_ylabel("Norma residuum")
+
+    ax.legend()
+    ax.grid()
+    plt.yscale("log")
+    plt.show()
 
 
 def task_c():
     A, B = task_a(a1=3)
 
-    x_Jacobi, iter_jacobi, time_jacobi = jacobi(A, B)
+    x_Jacobi, iter_jacobi, time_jacobi, norms_jacobi = jacobi(A, B)
 
     print(f"Jacobi Residue norm: {norm_residual(A, B, x_Jacobi)}")
     print(f"Jacobi iterations: {iter_jacobi}")
     print(f"Jacobi time: {time_jacobi}")
 
-    x_gauss, iter_gauss, time_gauss = gauss_seidel(A, B)
+    x_gauss, iter_gauss, time_gauss, norms_gauss = gauss_seidel(A, B)
 
     print(f"Gauss-Seidel Residue norm: {norm_residual(A, B, x_gauss)}")
     print(f"Gauss-Seidel iterations: {iter_gauss}")
     print(f"Gauss-Seidel time: {time_gauss}")
 
+    fig, ax = plt.subplots()
+    ax.plot(range(iter_gauss), norms_gauss, 'blue', label="Metoda Gauss'a-Seidel'a")
+    ax.plot(range(iter_jacobi), norms_jacobi, 'green', label="Metoda Jacobi")
+
+    ax.set_title("Norma residuum w kolejnych iteracjach")
+    ax.set_xlabel("Iteracja [n]")
+    ax.set_ylabel("Norma residuum")
+
+    ax.legend()
+    ax.grid()
+    plt.yscale("log")
+    plt.show()
+
 
 def task_d(n=955, a1=10):
+    start = time.time()
     A = make_matrix(n, a1=a1)
     B = make_b(n)
-    start = time.time()
     x_LU = lu_factorization_solve(A, B)
     end = time.time()
     elapsed_time = end - start
@@ -181,14 +231,19 @@ def task_e():
         print(f"Gauss time: {time_gauss}")
 
     fig, ax = plt.subplots()
-    ax.plot(N, gauss_times, 'blue')
-    ax.plot(N, jacobi_times, 'green')
-    ax.plot(N, LU_times, 'yellow')
+    ax.plot(N, gauss_times, 'blue', label="Metoda Gauss'a-Seidel'a")
+    ax.plot(N, jacobi_times, 'green', label="Metoda Jacobi")
+    ax.plot(N, LU_times, 'yellow', label="Faktoryzacja LU")
 
+    ax.set_title("Porównanie czasu rozwiązania")
+    ax.set_xlabel("Rozmiar macierzy [N]")
+    ax.set_ylabel("Czas [s]")
+
+    ax.legend()
     ax.grid()
 
     plt.show()
 
 
 if __name__ == '__main__':
-    task_e()
+    task_c()
